@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Sensor</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        /* Styling Halaman */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #444;
+        }
+
+        .container {
+            width: 80%;
+            margin: 20px auto;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        form, .data-control {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        form {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        background: #f9f9f9;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    form label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #555;
+    }
+
+    form input {
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 16px;
+        transition: border 0.3s, box-shadow 0.3s;
+    }
+
+    form input:focus {
+        border-color: #4CAF50;
+        box-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        outline: none;
+    }
+
+    form button {
+        background: #4CAF50;
+        color: white;
+        font-size: 16px;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+
+    form button:hover {
+        background: #45a049;
+    }
+
+    /* Layout */
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-row {
+        display: flex;
+        gap: 20px;
+    }
+
+    .form-row .form-group {
+        flex: 1;
+    }
+
+        label {
+            font-weight: bold;
+        }
+
+        select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            overflow-y: auto;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .table-container {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        canvas {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Sensor Dashboard</h1>
+
+    <div class="container">
+        <!-- Form Input Data -->
+        <h2>Tambah Data Sensor</h2>
+        <form id="sensor-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="gas">Gas:</label>
+                    <input type="number" id="gas" name="gas" placeholder="Masukkan nilai gas" required>
+                </div>
+                <div class="form-group">
+                    <label for="humidity">Humidity:</label>
+                    <input type="number" id="humidity" name="humidity" placeholder="Masukkan nilai kelembapan" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="temp">Temperature:</label>
+                    <input type="number" id="temp" name="temp" placeholder="Masukkan nilai suhu" required>
+                </div>
+            </div>
+            <button type="submit">Simpan Data</button>
+        </form>
+        <!-- Dropdown Pilihan Jumlah Data -->
+        <div class="data-control">
+            <label for="dataCount">Tampilkan Data:</label>
+            <select id="dataCount">
+                <option value="5">5 Data</option>
+                <option value="10">10 Data</option>
+                <option value="15">15 Data</option>
+                <option value="20">20 Data</option>
+            </select>
+        </div>
+
+        <!-- Table Data Sensor -->
+        <h2>Data Sensor</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Gas</th>
+                        <th>Humidity</th>
+                        <th>Temperature</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="data-table">
+                    <!-- Data akan diisi melalui JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Grafik Data -->
+        <h2>Grafik Data Sensor</h2>
+        <canvas id="sensorChart"></canvas>
+    </div>
+
+    <script>
+        let sensorChart;
+        const dataCountSelect = document.getElementById('dataCount');
+
+        // Fungsi untuk mengambil data dari server
+        async function fetchData() {
+            try {
+                const response = await fetch('/data'); // Ambil data dari backend
+                const data = await response.json();
+                updateTableAndChart(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        // Fungsi untuk memperbarui tabel dan grafik
+        function updateTableAndChart(data) {
+            const dataCount = parseInt(dataCountSelect.value); // Ambil jumlah data yang dipilih
+            const tableBody = document.getElementById('data-table');
+            tableBody.innerHTML = ''; // Hapus isi tabel lama
+
+            const labels = [];
+            const gasData = [];
+            const humidityData = [];
+            const tempData = [];
+
+            // Ambil data sesuai jumlah pilihan
+            const latestData = data.slice(-dataCount);
+
+            latestData.forEach((item, index) => {
+                const row = `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.sensor_value_gas}</td>
+                        <td>${item.sensor_value_humidity}</td>
+                        <td>${item.sensor_value_temp}</td>
+                        <td>${item.timestamp}</td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+
+                // Data untuk grafik
+                labels.push(new Date(item.timestamp).toLocaleTimeString());
+                gasData.push(item.sensor_value_gas);
+                humidityData.push(item.sensor_value_humidity);
+                tempData.push(item.sensor_value_temp);
+            });
+
+            updateChart(labels, gasData, humidityData, tempData);
+        }
+
+        // Fungsi untuk memperbarui grafik
+        function updateChart(labels, gasData, humidityData, tempData) {
+            const ctx = document.getElementById('sensorChart').getContext('2d');
+            if (sensorChart) sensorChart.destroy();
+
+            sensorChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Gas', data: gasData, borderColor: 'red', fill: false },
+                        { label: 'Humidity', data: humidityData, borderColor: 'blue', fill: false },
+                        { label: 'Temperature', data: tempData, borderColor: 'green', fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: { wheel: { enabled: true }, mode: 'x' }
+                        }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Waktu' } },
+                        y: { title: { display: true, text: 'Nilai Sensor' } }
+                    }
+                }
+            });
+        }
+
+        // Fungsi untuk mengirim data ke server
+        async function postData(event) {
+            event.preventDefault();
+            const gas = document.getElementById('gas').value;
+            const humidity = document.getElementById('humidity').value;
+            const temp = document.getElementById('temp').value;
+
+            try {
+                await fetch('/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sensor_value_gas: parseFloat(gas),
+                        sensor_value_humidity: parseFloat(humidity),
+                        sensor_value_temp: parseFloat(temp)
+                    })
+                });
+                alert('Data berhasil disimpan!');
+                document.getElementById('sensor-form').reset();
+                fetchData();
+            } catch (error) {
+                console.error('Error posting data:', error);
+            }
+        }
+
+        document.getElementById('sensor-form').addEventListener('submit', postData);
+        dataCountSelect.addEventListener('change', fetchData); // Update saat pilihan berubah
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+</html>
