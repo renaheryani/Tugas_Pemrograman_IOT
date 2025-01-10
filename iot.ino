@@ -3,11 +3,11 @@
 #include <DHT.h>
 
 // Konfigurasi WiFi
-const char* ssid = "SANTAI";
-const char* password = "becakroda4";
+const char* ssid = "iPhone";
+const char* password = "12345677";
 
 // URL server Flask
-const char* serverUrl = "https://186e-180-245-90-159.ngrok-free.app/data";
+const char* serverUrl = "https://rena-iot.vercel.app/data";
 
 // Konfigurasi sensor DHT
 #define DHTPIN 4
